@@ -1,0 +1,12 @@
+{
+  "name": "占いアプリ - AIろい製作委員会テンプレ",
+  "short_name": "占いアプリ",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0e0f13",
+  "theme_color": "#5a49ff",
+  "icons": [
+    { "src": "./assets/icons/icon-16.png", "sizes": "16x16", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./assets/icons/icon-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

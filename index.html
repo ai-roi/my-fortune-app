@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>占いアプリ - AIろい製作委員会</title>
+<meta name="theme-color" content="#5a49ff">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#151821; --card:#1a1f2b; --text:#eef2ff; --muted:#9aa3b2;
+    --accent:#5a49ff; --line:#242a36; --ok:#2bd4a7; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;}
+  a{color:var(--accent);text-decoration:none}
+  header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;position:sticky;top:0;background:rgba(14,15,19,.92);backdrop-filter:blur(6px);z-index:10}
+  /* 既存に追加：画像アイコン用 */
+  .appicon { width:44px; height:44px; border-radius:10px; border:1px solid var(--line); overflow:hidden; display:grid; place-items:center; font-weight:800; }
+  .appicon img { width:100%; height:100%; object-fit:cover; display:block; }
+  .appicon.fallback { background: linear-gradient(135deg, var(--accent) 0%, #2b2f55 100%); color:#e6e8ff; }
+  .appicon svg { width:70%; height:70%; }
+
+  .brand{display:flex;flex-direction:column}
+  .brand .title{font-size:16px;font-weight:800}
+  .brand .sub{font-size:12px;color:var(--muted)}
+  main{padding:16px 16px 96px;max-width:920px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:860px){.row{grid-template-columns:1fr}}
+  .hero{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center}
+  .avatar{width:92px;height:92px;border-radius:12px;object-fit:cover;border:1px solid var(--line)}
+  h2{margin:0 0 6px 0;font-size:18px}
+  .muted{color:var(--muted)}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0b0b14;border:none;border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer}
+  .btn.ghost{background:#232838;color:var(--text);border:1px solid var(--line)}
+  .btn.full{width:100%;justify-content:center}
+  .field{display:flex;flex-direction:column;gap:6px}
+  input,select{width:100%;background:#0f1220;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .result{background:#0f1220;border:1px dashed #2a3140;padding:12px;border-radius:12px;white-space:pre-wrap;line-height:1.7}
+  footer.nav{position:fixed;left:0;right:0;bottom:0;border-top:1px solid var(--line);background:rgba(14,15,19,.96);backdrop-filter:blur(8px);padding:10px}
+  .navgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .pill{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:12px;background:#1a1f2b;border:1px solid var(--line);cursor:pointer;color:var(--muted);text-align:center}
+  .pill.active{background:#232b40;color:#e8ecff;border-color:#384466}
+  .gifmask{position:fixed;inset:0;background:rgba(0,0,0,.76);display:none;align-items:center;justify-content:center;z-index:30}
+  .gifmask.open{display:flex}
+  .gifmask img{max-width:84vw;max-height:84vh;border-radius:12px;border:1px solid #2a3140;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .cap{font-size:12px;color:var(--muted);margin-top:8px;text-align:center}
+  .badge{display:inline-block;font-size:11px;color:#0c1529;background:#cfe0ff;border-radius:999px;padding:2px 8px;margin-left:6px}
+  .small{font-size:12px}
+  .cta{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
+  .btn.pay{background:var(--danger)}
+</style>
+
+<script>
+/* =========================
+    CONFIG（ここだけ差し替え）
+    ========================= */
+// 画像アセットは外部パスを使用します。
+const CONFIG = {
+  BRAND: {
+    appTitle: "占いアプリ",
+    appSubtitle: "AIろい製作委員会テンプレ",
+    appIconText: "占",
+    themeColor: "#5a49ff"
+  },
+  PROFILE: {
+    name: "朱雀 みやび",
+    title: "占い師 / タロット・四柱推命",
+    avatar: "assets/fortune_avatar.jpg",
+    profile: "恋愛・仕事・転機の読み解きを得意とします。今必要なメッセージをお届けします。",
+    siteUrl: "https://example.com",
+    siteLabel: "公式サイト",
+    reserveUrl: "https://example.com/reserve",
+    reserveLabel: "鑑定予約",
+    payUrl: "https://example.com/pay",
+    payLabel: "オンライン決済"
+  },
+  ASSETS: {
+    readingGif: "assets/reading.gif"
+  },
+  TEXT: {
+    disclaimer: "本結果は参考情報です。医療・法律・投資判断の代替ではありません。",
+    tarotTitle: "タロット占い（1枚引き・正逆位）",
+    fourPillarsTitle: "四柱推命（年柱・月柱・日柱の簡易算出）",
+    moreCallout: "さらに詳しい鑑定をご希望の方は下記よりどうぞ。"
+  },
+  FEATURES: {
+    showReverse: true,
+    gifDurationMs: 1800
+  },
+  ICONS: {
+    favicon16: "assets/icons/icon-16.png",
+    favicon32: "assets/icons/icon-32.png",
+    favicon192: "assets/icons/icon-192.png",
+    faviconSvg: "assets/icons/icon.svg",
+    appleTouch: "assets/icons/icon-192.png",
+    appIconImage: "assets/icons/app-icon.png"
+  }
+};
+</script>
+
+<!-- アイコン差し替え（head用） -->
+<script>
+window.onload = function() {
+  // 水晶玉のSVG
+  const crystalBallSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+  const I = (CONFIG && CONFIG.ICONS) ? CONFIG.ICONS : {};
+  const newIconData = I.appIconImage;
+
+  // 既存のアイコンリンクをすべて削除
+  document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
+
+  // 新しいPNGデータをファビコンとApple touch iconに設定
+  if (newIconData) {
+    const iconLink = document.createElement('link');
+    iconLink.setAttribute('rel', 'icon');
+    iconLink.setAttribute('type', 'image/png');
+    iconLink.setAttribute('href', newIconData);
+    document.head.appendChild(iconLink);
+
+    const appleLink = document.createElement('link');
+    appleLink.setAttribute('rel', 'apple-touch-icon');
+    appleLink.setAttribute('href', newIconData);
+    document.head.appendChild(appleLink);
+  }
+
+  // meta theme-color を CONFIG で上書き
+  const metaTheme = document.querySelector('meta[name="theme-color"]') || document.createElement('meta');
+  metaTheme.setAttribute('name', 'theme-color');
+  metaTheme.setAttribute('content', CONFIG.BRAND.themeColor || '#5a49ff');
+  if (!metaTheme.parentNode) document.head.appendChild(metaTheme);
+
+  // ヘッダーアイコンを更新（SVGまたはテキストにフォールバック）
+  const el = document.getElementById('appicon');
+  if (el) {
+    const imgSrc = I.appIconImage || CONFIG.PROFILE.avatar;
+    if (imgSrc) {
+      el.classList.remove('fallback');
+      el.innerHTML = '<img alt="app icon">';
+      el.querySelector('img').src = imgSrc;
+    } else {
+      // 画像が無い場合はSVGを挿入
+      el.classList.add('fallback');
+      el.innerHTML = crystalBallSvg;
+      el.style.color = '#fff';
+      el.style.background = '#5a49ff';
+    }
+  }
+};
+</script>
+</head>
+<body>
+<script>
+/* =========================
+    以後のロジック（編集不要）
+    ========================= */
+
+// UI構築
+document.body.insertAdjacentHTML('afterbegin', `
+<header>
+  <div class="appicon" id="appicon"></div>
+  <div class="brand">
+    <div class="title">${CONFIG.BRAND.appTitle}</div>
+    <div class="sub">${CONFIG.BRAND.appSubtitle} <span class="badge">オフライン</span></div>
+  </div>
+</header>
+
+<main>
+  <section id="home">
+    <div class="card hero">
+      <img class="avatar" src="${CONFIG.PROFILE.avatar}" alt="占い師">
+      <div>
+        <h2>${CONFIG.PROFILE.name}</h2>
+        <div class="muted small">${CONFIG.PROFILE.title}</div>
+        <p class="muted small" style="margin:8px 0 12px">${CONFIG.PROFILE.profile}</p>
+        <a class="btn ghost small" href="${CONFIG.PROFILE.siteUrl}" target="_blank" rel="noopener">${CONFIG.PROFILE.siteLabel}</a>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div class="card">
+        <h3>タロット占い</h3>
+        <p class="muted small">テーマを入力して「占う」を押してください。</p>
+        <div class="field">
+          <label class="small muted">相談テーマ</label>
+          <input id="tarotTopic" placeholder="例：仕事・恋愛・転機など">
+        </div>
+        <button class="btn full" id="btnTarot">占う</button>
+        <div class="result small" id="tarotResult" style="display:none;margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <h3>${CONFIG.TEXT.fourPillarsTitle}</h3>
+        <p class="muted small">生年月日（任意で出生時刻）を入力し「占う」。</p>
+        <div class="row">
+          <div class="field">
+            <label class="small muted">生年月日</label>
+            <input id="birth" type="date">
+          </div>
+          <div class="field">
+            <label class="small muted">出生時刻（任意）</label>
+            <input id="birthTime" type="time" step="60">
+          </div>
+        </div>
+        <button class="btn full" id="btnFP" style="margin-top:6px">占う</button>
+        <div class="result small" id="fpResult" style="display:none;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="card cta">
+      <p class="small">${CONFIG.TEXT.moreCallout}</p>
+      <a class="btn full" href="${CONFIG.PROFILE.reserveUrl}" target="_blank" rel="noopener">${CONFIG.PROFILE.reserveLabel}</a>
+      <a class="btn full pay" href="${CONFIG.PROFILE.payUrl}" target="_blank" rel="noopener">${CONFIG.PROFILE.payLabel}</a>
+    </div>
+
+    <p class="cap" style="margin-top:12px">${CONFIG.TEXT.disclaimer}</p>
+  </section>
+</main>
+
+<footer class="nav">
+  <div class="navgrid">
+    <div class="pill active" data-tab="home">ホーム</div>
+    <div class="pill" data-tab="tarot">タロット</div>
+    <div class="pill" data-tab="fourpillars">生年月日</div>
+  </div>
+</footer>
+
+<div class="gifmask" id="gifmask" aria-hidden="true">
+  <div style="text-align:center">
+    <img id="gifimg" alt="reading">
+    <div class="cap">占っています…</div>
+  </div>
+</div>
+
+<section id="tarot" style="display:none;padding:16px;max-width:920px;margin:0 auto">
+  <div class="card">
+    <h3>${CONFIG.TEXT.tarotTitle}</h3>
+    <div class="field">
+      <label class="small muted">相談テーマ</label>
+      <input id="tarotTopic2" placeholder="自由入力">
+    </div>
+    <button class="btn full" id="btnTarot2" style="margin-top:6px">占う</button>
+    <div class="result small" id="tarotResult2" style="display:none;margin-top:8px"></div>
+  </div>
+</section>
+
+<section id="fourpillars" style="display:none;padding:16px;max-width:920px;margin:0 auto">
+  <div class="card">
+    <h3>${CONFIG.TEXT.fourPillarsTitle}</h3>
+    <div class="row">
+      <div class="field">
+        <label class="small muted">生年月日</label>
+        <input id="birth2" type="date">
+      </div>
+      <div class="field">
+        <label class="small muted">出生時刻（任意）</label>
+        <input id="birthTime2" type="time" step="60">
+      </div>
+    </div>
+    <button class="btn full" id="btnFP2" style="margin-top:6px">占う</button>
+    <div class="result small" id="fpResult2" style="display:none;margin-top:8px"></div>
+    <p class="small muted" style="margin-top:8px">
+      注：本テンプレの算出は簡易ロジックです。節入り（立春等）や時柱の厳密計算は各自の流儀で調整してください。
+    </p>
+  </div>
+</section>
+`);
+
+// ヘッダーアイコンの画像差し替え（画像が無い場合はテキスト）
+(function applyHeaderIcon() {
+  const el = document.getElementById('appicon');
+  if (!el) return;
+  const I = (CONFIG && CONFIG.ICONS) ? CONFIG.ICONS : {};
+  const imgSrc = I.appIconImage || CONFIG.PROFILE.avatar; // 優先: 専用アイコン → アバター
+  const crystalBallSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+  if (imgSrc) {
+    el.classList.remove('fallback');
+    el.innerHTML = '<img alt="app icon">';
+    el.querySelector('img').src = imgSrc;
+  } else {
+    // 画像が無い場合はSVGを挿入
+    el.classList.add('fallback');
+    el.innerHTML = crystalBallSvg;
+    el.style.color = '#fff';
+    el.style.background = '#5a49ff';
+  }
+})();
+
+
+// タブ切替
+const tabs = ["home","tarot","fourpillars"];
+document.querySelectorAll('.pill').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const t = el.dataset.tab;
+    tabs.forEach(id=>{
+      document.getElementById(id).style.display = (id===t)?'block':'none';
+    });
+    document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active', p.dataset.tab===t));
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+});
+
+// GIF演出
+const mask = document.getElementById('gifmask');
+const gifimg = document.getElementById('gifimg');
+gifimg.src = CONFIG.ASSETS.readingGif;
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function showGif(){ mask.classList.add('open'); mask.setAttribute('aria-hidden','false'); }
+function hideGif(){ mask.classList.remove('open'); mask.setAttribute('aria-hidden','true'); }
+
+// タロット（大アルカナ22）
+const TAROT = [
+  ["愚者","自由/可能性/旅立ち","軽率/無責任/迷走"],["魔術師","始まり/意志/創造","未熟/準備不足/空回り"],
+  ["女教皇","直感/静けさ/知恵","冷淡/受動/閉塞"],["女帝","豊かさ/実り/育成","浪費/過保護/停滞"],
+  ["皇帝","秩序/統率/責任","独裁/頑固/抑圧"],["法王","伝統/助言/師","形式主義/依存/硬直"],
+  ["恋人","選択/調和/愛","優柔不断/誘惑/不一致"],["戦車","勝利/前進/突破","暴走/過信/衝突"],
+  ["力","内なる強さ/忍耐/慈愛","無力/自己否定/焦燥"],["隠者","探求/内省/独立","孤立/停滞/閉鎖"],
+  ["運命の輪","転機/追い風/機運","停滞/タイミング悪/反復"],["正義","公平/均衡/判断","不均衡/不正/曖昧"],
+  ["吊るされた男","献身/視点転換/待機","犠牲/固執/無駄骨"],["死神","終わりと再生/一新","停滞/手放せない/惰性"],
+  ["節制","調整/節度/調和","過不足/混乱/不調和"],["悪魔","執着/依存/束縛","解放/自制/見直し"],
+  ["塔","破壊/目覚め/崩壊","回避/先延ばし/歪み"],["星","希望/インスピレーション","失望/現実逃避/空想"],
+  ["月","不安/曖昧/潜在意識","明確化/直面/解消"],["太陽","成功/喜び/活力","空騒ぎ/過信/空回り"],
+  ["審判","復活/呼び覚まし/決断","後悔/優柔/停滞"],["世界","達成/完成/統合","未完/輪の外/停滞"]
+];
+function drawTarot(){
+  const idx = Math.floor(Math.random()*TAROT.length);
+  const [name, up, rev] = TAROT[idx];
+  const reversed = CONFIG.FEATURES.showReverse ? (Math.random()<0.5) : false;
+  return { name, reversed, text: reversed ? rev : up };
+}
+function tarotText(topic, res){
+  const head = `【結果】${res.name}${res.reversed?"（逆位置）":"（正位置）"}`;
+  const meaning = `キーワード：${res.text}`;
+  const focus = res.text.split("／")[0];
+  const advice = topic
+    ? `テーマ「${topic}」の示唆：\n・まず「${focus}」の性質を意識\n・選択肢を絞り軸を固める\n・短いスパン（3〜7日）で見直しを`
+    : `直近の行動指針に「${focus}」を。`;
+  return `${head}\n\n${meaning}\n\n${advice}`;
+}
+
+// 四柱推命（簡易：年柱・月柱・日柱）
+// 参考基準：1984-02-02 を甲子日とする簡易換算（±時差の誤差は許容）
+const STEMS = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+const STEM_EL = ["木陽","木陰","火陽","火陰","土陽","土陰","金陽","金陰","水陽","水陰"];
+const BRANCHES = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+const BRANCH_EL = {子:"水",丑:"土",寅:"木",卯:"木",辰:"土",巳:"火",午:"火",未:"土",申:"金",酉:"金",戌:"土",亥:"水"};
+
+// 立春・節入りの概算（年により±1日のぶれあり：簡易用）
+function approxSolarTermsY(y){
+  return {
+    minorCold: new Date(y,0,6),    // 小寒 ~1/6
+    startSpring: new Date(y,1,4), // 立春 ~2/4
+    awakening: new Date(y,2,6),    // 啓蟄 ~3/6
+    clearBright: new Date(y,3,5), // 清明 ~4/5
+    startSummer: new Date(y,4,6), // 立夏 ~5/6
+    grainInEar: new Date(y,5,6),  // 芒種 ~6/6
+    minorHeat: new Date(y,6,7),    // 小暑 ~7/7
+    startAutumn: new Date(y,7,8), // 立秋 ~8/8
+    whiteDew: new Date(y,8,8),    // 白露 ~9/8
+    coldDew: new Date(y,9,8),      // 寒露 ~10/8
+    startWinter: new Date(y,10,7),// 立冬 ~11/7
+    heavySnow: new Date(y,11,7)    // 大雪 ~12/7
+  };
+}
+function sexagenaryIndex(stemIdx, branchIdx){ return (stemIdx%10 + 60 + (branchIdx%12)*0) % 10; } // helper placeholder
+
+// 年柱（立春前は前年扱い）
+function yearPillar(d){
+  const y = d.getFullYear();
+  const terms = approxSolarTermsY(y);
+  const isBeforeLiChun = d < terms.startSpring;
+  const baseYear = isBeforeLiChun ? y-1 : y;
+  // 甲子は1984年（甲子年）
+  const diff = baseYear - 1984;
+  const stemIdx = ((0 + diff) % 10 + 10) % 10; // 1984→甲=0
+  const branchIdx = ((0 + diff) % 12 + 12) % 12; // 1984→子=0
+  return { stem: STEMS[stemIdx], stemEl: STEM_EL[stemIdx], branch: BRANCHES[branchIdx], elem: BRANCH_EL[BRANCHES[branchIdx]] };
+}
+
+// 月柱（簡易）：寅月を1月とする節入り基準。月干は年干に応じた表で決定。
+const FIRST_MONTH_STEM_BY_YEAR_STEM = {
+  "甲":"丙","己":"丙","乙":"戊","庚":"戊","丙":"庚","辛":"庚","丁":"壬","壬":"壬","戊":"甲","癸":"甲"
+};
+function monthPillar(d){
+  const y = d.getFullYear();
+  const t = approxSolarTermsY(y);
+  // 寅月〜丑月の切替（概算）
+  const monthIndex = (()=>{
+    if (d >= t.startSpring && d < t.awakening) return 1;          // 寅
+    if (d >= t.awakening && d < t.clearBright) return 2;          // 卯
+    if (d >= t.clearBright && d < t.startSummer) return 3;           // 辰
+    if (d >= t.startSummer && d < t.grainInEar) return 4;           // 巳
+    if (d >= t.grainInEar && d < t.minorHeat) return 5;             // 午
+    if (d >= t.minorHeat && d < t.startAutumn) return 6;           // 未
+    if (d >= t.startAutumn && d < t.whiteDew) return 7;             // 申
+    if (d >= t.whiteDew && d < t.coldDew) return 8;               // 酉
+    if (d >= t.coldDew && d < t.startWinter) return 9;            // 戌
+    if (d >= t.startWinter && d < t.heavySnow) return 10;            // 亥
+    if (d >= t.heavySnow || d < t.minorCold) return 11;            // 子（年末〜年始）
+    if (d >= t.minorCold && d < t.startSpring) return 12;            // 丑
+    return 1;
+  })();
+  const branchesOrder = ["寅","卯","辰","巳","午","未","申","酉","戌","亥","子","丑"];
+  const branch = branchesOrder[monthIndex-1];
+  const yP = yearPillar(d);
+  const firstStem = FIRST_MONTH_STEM_BY_YEAR_STEM[yP.stem];
+  const startIdx = STEMS.indexOf(firstStem);
+  const stemIdx = (startIdx + (monthIndex-1)) % 10;
+  return { stem: STEMS[stemIdx], stemEl: STEM_EL[stemIdx], branch, elem: BRANCH_EL[branch] };
+}
+
+// 日柱（簡易）：1984-02-02 を甲子日（0）として通日差分で算出
+function dayPillar(d){
+  const base = new Date(Date.UTC(1984,1,2)); // 1984-02-02 UTC
+  const cur = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const days = Math.floor((cur - base) / 86400000);
+  const stemIdx = ((0 + days) % 10 + 10) % 10;
+  const branchIdx = ((0 + days) % 12 + 12) % 12;
+  return { stem: STEMS[stemIdx], stemEl: STEM_EL[stemIdx], branch: BRANCHES[branchIdx], elem: BRANCH_EL[BRANCHES[branchIdx]] };
+}
+
+function fpExplain(yP, mP, dP){
+  return `【年柱】${yP.stem}${yP.branch}（${yP.stemEl}・${yP.elem}）
+【月柱】${mP.stem}${mP.branch}（${mP.stemEl}・${mP.elem}）
+【日柱】${dP.stem}${dP.branch}（${dP.stemEl}・${dP.elem}）
+
+【読み方のヒント】
+・日柱＝本質/核。年柱＝社会/縁。月柱＝環境/実務。
+・五行の偏りを補完すると流れが整いやすい。
+・詳細鑑定は時柱や大運/流年を加味して判断。`;
+}
+
+// イベント（タロット）
+function handleTarot(topicElId, outId){
+  const topic = document.getElementById(topicElId).value.trim();
+  showGif();
+  sleep(CONFIG.FEATURES.gifDurationMs).then(()=>{
+    hideGif();
+    const res = drawTarot();
+    const text = tarotText(topic, res);
+    const out = document.getElementById(outId);
+    out.style.display='block';
+    out.textContent = text;
+  });
+}
+document.getElementById('btnTarot').addEventListener('click', ()=>handleTarot('tarotTopic','tarotResult'));
+document.getElementById('btnTarot2').addEventListener('click', ()=>handleTarot('tarotTopic2','tarotResult2'));
+
+// イベント（四柱推命）
+function handleFP(birthId, outId){
+  const val = document.getElementById(birthId).value;
+  if (!val){ alert('生年月日を入力してください'); return; }
+  const d = new Date(val + "T00:00:00");
+  showGif();
+  sleep(CONFIG.FEATURES.gifDurationMs).then(()=>{
+    hideGif();
+    const yP = yearPillar(d);
+    const mP = monthPillar(d);
+    const dP = dayPillar(d);
+    const out = document.getElementById(outId);
+    out.style.display='block';
+    out.textContent = fpExplain(yP, mP, dP);
+  });
+}
+document.getElementById('btnFP').addEventListener('click', ()=>handleFP('birth','fpResult'));
+document.getElementById('btnFP2').addEventListener('click', ()=>handleFP('birth2','fpResult2'));
+
+</script>
+</body>
+</html>
